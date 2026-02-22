@@ -114,6 +114,8 @@ Sem volume correto, banco e site podem ser perdidos.
 
 ## 8) Rede no Inception
 
+![Diagrama da rede Docker no Inception](images/docker_network.svg)
+
 Regras:
 - usar rede Docker dedicada
 - sem `network_mode: host`

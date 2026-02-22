@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 520" font-family="Segoe UI, Arial, sans-serif">
+  <!-- Background -->
+  <rect width="720" height="520" rx="12" fill="#f4f6fb"/>
+
+  <!-- Title -->
+  <text x="360" y="36" text-anchor="middle" font-size="20" font-weight="bold" fill="#23272f">Rede Docker — Inception</text>
+
+  <!-- Docker Network area -->
+  <rect x="60" y="56" width="600" height="310" rx="18" fill="#e3eafc" stroke="#2176ff" stroke-width="2.5" stroke-dasharray="10 5"/>
+  <text x="360" y="82" text-anchor="middle" font-size="15" fill="#2176ff" font-weight="bold">inception_net (bridge)</text>
+
+  <!-- Nginx container -->
+  <rect x="90" y="110" width="160" height="110" rx="14" fill="#fff" stroke="#0db7ed" stroke-width="2"/>
+  <rect x="90" y="110" width="160" height="32" rx="14" fill="#0db7ed"/>
+  <text x="170" y="132" text-anchor="middle" font-size="14" fill="#fff" font-weight="bold">Nginx</text>
+  <text x="170" y="160" text-anchor="middle" font-size="12" fill="#23272f">TLS termination</text>
+  <text x="170" y="178" text-anchor="middle" font-size="12" fill="#23272f">Reverse proxy</text>
+  <text x="170" y="200" text-anchor="middle" font-size="11" fill="#888">porta 443 (HTTPS)</text>
+
+  <!-- WordPress container -->
+  <rect x="280" y="110" width="160" height="110" rx="14" fill="#fff" stroke="#21759b" stroke-width="2"/>
+  <rect x="280" y="110" width="160" height="32" rx="14" fill="#21759b"/>
+  <text x="360" y="132" text-anchor="middle" font-size="14" fill="#fff" font-weight="bold">WordPress</text>
+  <text x="360" y="160" text-anchor="middle" font-size="12" fill="#23272f">php-fpm :9000</text>
+  <text x="360" y="178" text-anchor="middle" font-size="12" fill="#23272f">Aplicacao web</text>
+  <text x="360" y="200" text-anchor="middle" font-size="11" fill="#888">sem porta publica</text>
+
+  <!-- MariaDB container -->
+  <rect x="470" y="110" width="160" height="110" rx="14" fill="#fff" stroke="#c0765a" stroke-width="2"/>
+  <rect x="470" y="110" width="160" height="32" rx="14" fill="#c0765a"/>
+  <text x="550" y="132" text-anchor="middle" font-size="14" fill="#fff" font-weight="bold">MariaDB</text>
+  <text x="550" y="160" text-anchor="middle" font-size="12" fill="#23272f">Banco de dados</text>
+  <text x="550" y="178" text-anchor="middle" font-size="12" fill="#23272f">porta 3306</text>
+  <text x="550" y="200" text-anchor="middle" font-size="11" fill="#888">sem porta publica</text>
+
+  <!-- Network bus line -->
+  <line x1="100" y1="260" x2="620" y2="260" stroke="#2176ff" stroke-width="3"/>
+  <!-- Connection lines from containers to bus -->
+  <line x1="170" y1="220" x2="170" y2="260" stroke="#2176ff" stroke-width="2"/>
+  <circle cx="170" cy="260" r="5" fill="#2176ff"/>
+  <line x1="360" y1="220" x2="360" y2="260" stroke="#2176ff" stroke-width="2"/>
+  <circle cx="360" cy="260" r="5" fill="#2176ff"/>
+  <line x1="550" y1="220" x2="550" y2="260" stroke="#2176ff" stroke-width="2"/>
+  <circle cx="550" cy="260" r="5" fill="#2176ff"/>
+
+  <!-- DNS labels on bus -->
+  <text x="170" y="285" text-anchor="middle" font-size="10" fill="#2176ff" font-style="italic">DNS: nginx</text>
+  <text x="360" y="285" text-anchor="middle" font-size="10" fill="#2176ff" font-style="italic">DNS: wordpress</text>
+  <text x="550" y="285" text-anchor="middle" font-size="10" fill="#2176ff" font-style="italic">DNS: mariadb</text>
+
+  <!-- Arrow Nginx -> WordPress -->
+  <line x1="250" y1="165" x2="280" y2="165" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="265" y="157" text-anchor="middle" font-size="9" fill="#555">:9000</text>
+
+  <!-- Arrow WordPress -> MariaDB -->
+  <line x1="440" y1="165" x2="470" y2="165" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="455" y="157" text-anchor="middle" font-size="9" fill="#555">:3306</text>
+
+  <!-- Volumes -->
+  <rect x="280" y="330" width="160" height="52" rx="10" fill="#fffbe6" stroke="#e6a817" stroke-width="1.5"/>
+  <text x="360" y="354" text-anchor="middle" font-size="12" font-weight="bold" fill="#b8860b">Volume: wp_data</text>
+  <text x="360" y="372" text-anchor="middle" font-size="10" fill="#888">/home/login/data/wordpress</text>
+
+  <rect x="470" y="330" width="160" height="52" rx="10" fill="#fffbe6" stroke="#e6a817" stroke-width="1.5"/>
+  <text x="550" y="354" text-anchor="middle" font-size="12" font-weight="bold" fill="#b8860b">Volume: db_data</text>
+  <text x="550" y="372" text-anchor="middle" font-size="10" fill="#888">/home/login/data/mariadb</text>
+
+  <!-- Volume connection lines -->
+  <line x1="360" y1="300" x2="360" y2="330" stroke="#e6a817" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <line x1="550" y1="300" x2="550" y2="330" stroke="#e6a817" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <!-- External client -->
+  <rect x="20" y="430" width="130" height="50" rx="10" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="85" y="455" text-anchor="middle" font-size="13" fill="#23272f">🌐 Cliente</text>
+  <text x="85" y="472" text-anchor="middle" font-size="10" fill="#888">navegador</text>
+
+  <!-- Arrow client -> Nginx -->
+  <line x1="135" y1="430" x2="170" y2="225" stroke="#0db7ed" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text x="120" y="340" font-size="11" fill="#0db7ed" font-weight="bold">HTTPS :443</text>
+
+  <!-- Legend -->
+  <rect x="400" y="420" width="290" height="80" rx="10" fill="#fff" stroke="#ccc" stroke-width="1"/>
+  <text x="415" y="442" font-size="12" font-weight="bold" fill="#23272f">Legenda</text>
+  <line x1="415" y1="456" x2="445" y2="456" stroke="#2176ff" stroke-width="3"/>
+  <text x="452" y="460" font-size="11" fill="#23272f">Rede Docker (bridge)</text>
+  <line x1="415" y1="474" x2="445" y2="474" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="452" y="478" font-size="11" fill="#23272f">Comunicacao entre servicos</text>
+  <line x1="415" y1="492" x2="445" y2="492" stroke="#e6a817" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="452" y="496" font-size="11" fill="#23272f">Volume persistente</text>
+
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#555"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#0db7ed"/>
+    </marker>
+  </defs>
+</svg>
