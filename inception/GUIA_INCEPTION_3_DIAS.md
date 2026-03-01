@@ -130,29 +130,41 @@ set -e
 DB_PASSWORD="$(cat /run/secrets/db_password)"
 DB_ROOT_PASSWORD="$(cat /run/secrets/db_root_password)"
 
+INITIALIZED=0
 if [ ! -d "/var/lib/mysql/mysql" ]; then
+    INITIALIZED=1
     mariadb-install-db --user=mysql --datadir=/var/lib/mysql >/dev/null
 fi
 
 chown -R mysql:mysql /var/lib/mysql
+mkdir -p /run/mysqld
+chown -R mysql:mysql /run/mysqld
 
 mariadbd --user=mysql --skip-networking --socket=/tmp/mysql.sock &
 PID="$!"
 
+if [ "$INITIALIZED" -eq 1 ]; then
+    PING_CMD=(mariadb-admin --socket=/tmp/mysql.sock -uroot)
+else
+    PING_CMD=(mariadb-admin --socket=/tmp/mysql.sock -uroot -p"${DB_ROOT_PASSWORD}")
+fi
+
 for i in $(seq 1 30); do
-    if mariadb-admin --socket=/tmp/mysql.sock ping >/dev/null 2>&1; then
+    if "${PING_CMD[@]}" ping >/dev/null 2>&1; then
         break
     fi
     sleep 1
 done
 
-mariadb --socket=/tmp/mysql.sock <<SQL
+if [ "$INITIALIZED" -eq 1 ]; then
+    mariadb --socket=/tmp/mysql.sock -uroot <<SQL
 CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
 CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_ROOT_PASSWORD}';
 GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
 FLUSH PRIVILEGES;
 SQL
+fi
 
 mariadb-admin --socket=/tmp/mysql.sock -uroot -p"${DB_ROOT_PASSWORD}" shutdown
 wait "$PID" || true
@@ -165,17 +177,27 @@ Explicação linha a linha:
 - `set -e`: script para no primeiro erro.
 - `DB_PASSWORD=...`: lê senha do usuário no secret Docker.
 - `DB_ROOT_PASSWORD=...`: lê senha root no secret Docker.
+- `INITIALIZED=0`: flag para saber se é primeira execução.
 - `if [ ! -d ... ]`: verifica se banco ainda não foi inicializado.
+- `INITIALIZED=1`: marca que banco precisa de bootstrap.
 - `mariadb-install-db ...`: inicializa datadir na primeira execução.
 - `fi`: fim do bloco condicional.
-- `chown -R ...`: garante dono correto dos arquivos do banco.
+- `chown -R ... /var/lib/mysql`: garante dono correto dos arquivos do banco.
+- `mkdir -p /run/mysqld`: cria diretório de socket do MariaDB.
+- `chown -R ... /run/mysqld`: garante permissões no diretório de socket.
 - `mariadbd ... --skip-networking ... &`: sobe MariaDB temporário por socket local.
 - `PID="$!"`: guarda PID do processo temporário.
+- `if [ "$INITIALIZED" -eq 1 ]`: na primeira execução root não tem senha ainda.
+- `PING_CMD=(... -uroot)`: comando de ping sem senha (primeira execução).
+- `else`: em execuções seguintes root já tem senha.
+- `PING_CMD=(... -uroot -p"${DB_ROOT_PASSWORD}")`: comando de ping com senha.
+- `fi`: fim da condicional de PING_CMD.
 - `for i in ...`: espera banco ficar pronto.
-- `mariadb-admin ... ping`: testa saúde do servidor local.
+- `"${PING_CMD[@]}" ping`: testa saúde do servidor local usando comando adequado.
 - `break`: sai do loop quando estiver pronto.
 - `sleep 1`: espera 1s entre tentativas.
 - `done`: fim do loop.
+- `if [ "$INITIALIZED" -eq 1 ]`: só executa SQL de bootstrap na primeira vez.
 - `mariadb --socket ... <<SQL`: executa bloco SQL de bootstrap.
 - `CREATE DATABASE ...`: cria banco WordPress.
 - `CREATE USER ...`: cria usuário de aplicação.
@@ -183,6 +205,7 @@ Explicação linha a linha:
 - `GRANT ALL PRIVILEGES ...`: permissões no banco do WP.
 - `FLUSH PRIVILEGES;`: aplica tabela de privilégios.
 - `SQL`: fim do heredoc SQL.
+- `fi`: fim da condicional de bootstrap.
 - `mariadb-admin ... shutdown`: desliga instância temporária.
 - `wait "$PID" || true`: espera processo terminar sem quebrar em erro já esperado.
 - `exec mariadbd ...`: sobe instância final em foreground (PID 1 correto).
