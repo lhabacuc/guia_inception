@@ -7,6 +7,6 @@
   "viewMode": "grid",
   "sortBy": "name",
   "sortOrder": "asc",
-  "showHiddenFiles": false,
+  "showHiddenFiles": true,
   "uploadLimitMB": 100
 }
