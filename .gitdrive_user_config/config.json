@@ -1,0 +1,12 @@
+{
+  "defaultRepo": {
+    "owner": "lhabacuc",
+    "repo": "guia_inception"
+  },
+  "displayName": "My Drive",
+  "viewMode": "grid",
+  "sortBy": "name",
+  "sortOrder": "asc",
+  "showHiddenFiles": false,
+  "uploadLimitMB": 100
+}
