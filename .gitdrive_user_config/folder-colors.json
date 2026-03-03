@@ -1,4 +1,5 @@
 {
   "inception": "red",
-  ".teste": "brown"
+  ".teste": "brown",
+  ".teste/scripts": "gray"
 }
