@@ -4,6 +4,7 @@ Guia principal para navegar os outros arquivos e terminar mais rápido.
 
 ## 1) Ordem recomendada de leitura
 
+0. `GUIA_VM_INCEPTION.md` *(se ainda nao tens VM pronta)*
 1. `TEORIA_DOCKER_INCEPTION.md`
 2. `TEORIA_NGINX_INCEPTION.md`
 3. `TEORIA_WORDPRESS_INCEPTION.md`
@@ -18,6 +19,7 @@ Guia principal para navegar os outros arquivos e terminar mais rápido.
 12. `ERROS_INCEPTION.md`
 
 Ideia:
+- primeiro preparar a VM (se necessario);
 - primeiro entender conceito;
 - depois praticar ferramenta;
 - depois montar serviços;
@@ -43,6 +45,9 @@ Ideia:
 - `PRATICA_WP_PROJETO.md`
 
 ## 3) Qual guia usar por dúvida
+
+- Dúvida de VM/VirtualBox/VMM/instalação Debian:
+  `GUIA_VM_INCEPTION.md`
 
 - Dúvida de Docker/Compose/volumes/secrets:
   `PRATICA_INCEPTION_COMPLETA.md` + `TEORIA_DOCKER_INCEPTION.md`

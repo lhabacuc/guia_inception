@@ -353,11 +353,15 @@ all:
 
 down:
 	docker compose -f srcs/docker-compose.yml down
+
+fclean: down
+  docker run --rm -v ${HOME}/data:/data debian:bullseye-slim sh -c "rm -rf /data/*"
 ```
 
 Explicação:
 - `all`: cria diretórios persistentes e sobe tudo.
 - `down`: derruba stack.
+- `fclean`: derruba stack e limpa dados persistentes.
 
 ## 5) Teste do fim do Dia 2
 
