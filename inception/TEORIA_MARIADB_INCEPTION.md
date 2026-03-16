@@ -1,150 +1,70 @@
-# TEORIA_MARIADB_INCEPTION.md
+# 🗄️ Teoria MariaDB: O Grande Cofre do Inception
 
-## 1) O que e MariaDB no Inception
+Chegamos à camada dos dados. Conheça o **MariaDB**, o super banco de dados relacional que vai atuar como o cofre e o grande arquivo do seu site WordPress. 
 
-MariaDB e o servico de banco de dados relacional da stack.
-No Inception, ele armazena todos os dados persistentes do WordPress:
-- usuarios
-- posts/paginas
-- configuracoes
-- metadados
+## 1. Pra que serve o MariaDB no Inception?
 
-Sem MariaDB funcional, o WordPress nao consegue operar.
+O WordPress é incrível, mas ele sofre de amnésia crônica sem um banco de dados. MariaDB é quem guarda:
+- O nome e senha (encriptada) dos usuários.
+- Todos os posts, textos e comentários.
+- A configuração do seu tema.
 
-## 2) Papel do MariaDB na arquitetura
+Se o banco de dados cair, o site quebra revelando aquela temida tela branca com letras pretas irritantes: *"Error establishing a database connection"*.
 
-Fluxo basico:
-1. WordPress recebe requisicao via Nginx/php-fpm.
-2. WordPress executa consultas SQL no MariaDB.
-3. MariaDB retorna dados para o WordPress.
-4. WordPress monta resposta HTML e devolve via Nginx.
+---
 
-Resumo:
-- Nginx = entrada HTTPS
-- WordPress/php-fpm = logica aplicacao
-- MariaDB = armazenamento persistente
+## 2. A Hierarquia de Usuários: Root vs Usuário do App
 
-## 3) Conceitos essenciais
+Imagine que o banco de dados é um banco de verdade (como uma agência financeira).
+- **O Root (O Gerente Geral):** Tem poder absoluto. Pode criar contas, apagar contas, incendiar o banco e mudar o sistema inteiro. **NUNCA** deixe o WordPress se conectar como Root. Isso é um suicídio de segurança.
+- **O Usuário da Aplicação (O Caixa):** É o usuário que vamos criar (`MYSQL_USER`). Ele só tem permissão para ler, escrever e apagar dados dentro das gavetas do próprio WordPress. 
 
-## 3.1 Banco relacional
-MariaDB organiza dados em:
-- databases
-- tabelas
-- linhas/colunas
+Na avaliação, mostrar que você separou isso e aplicou os privilégios corretos (`GRANT ALL PRIVILEGES ON wordpress.* TO user`) ganha sorrisos do avaliador.
 
-WordPress cria tabelas proprias (ex.: `wp_users`, `wp_posts`, etc.).
+---
 
-## 3.2 Usuario e privilegios
-Boas praticas no Inception:
-- nao usar root para aplicacao;
-- criar usuario dedicado (`MYSQL_USER`);
-- conceder privilegios apenas no banco do WordPress.
+## 3. O Segredo da Persistência (Volume é Vida!)
 
-Comandos SQL tipicos:
-- `CREATE DATABASE ...`
-- `CREATE USER ... IDENTIFIED BY ...`
-- `GRANT ALL PRIVILEGES ON wordpress.* TO ...`
-- `FLUSH PRIVILEGES`
+Pense nos dados soltos dentro de um container Docker como notas de dinheiro guardadas dentro de um balão de ar. Se o balão estourar, o dinheiro voa pro além.
+**A solução? Volumes.**
+O MariaDB guarda as tabelas em um diretório padrão (como `/var/lib/mysql`). No Inception, o requisito é mapear esse local para uma pasta na sua máquina: `/home/<login>/data/mariadb`. 
 
-## 3.3 Root vs usuario de aplicacao
-- `root`: administracao do servidor de banco.
-- usuario de app: usado pelo WordPress para operacao diaria.
+Quando o container cai ou é recriado, os seus dados permanecem fisicamente salvos no seu PC. Na próxima inicialização, o container novo se conecta a essa pasta e magicamente recupera toda a memória! Se falhar na persistência durante o teste do avaliador, é PONTUAÇÃO ZERO na hora.
 
-Separar os dois reduz risco de seguranca e erro humano.
+---
 
-## 3.4 Persistencia
-No projeto, o datadir do MariaDB (`/var/lib/mysql`) deve persistir em volume.
-O enunciado pede armazenamento no host em `/home/<login>/data/mariadb`.
+## 4. Segredos à Sete Chaves: `.env` x `Secrets`
 
-Sem persistencia:
-- banco e usuarios podem ser perdidos ao recriar container.
+Credenciais hardcoded no `Dockerfile` (tipo `ENV MYSQL_PASSWORD=1234`) são uma heresia no Inception. 
+Nós utilizamos duas camadas de organização:
+1. **`.env`**: As variáveis de configuração não-sensíveis (ex: nome do banco, host). É o crachá da visita.
+2. **`Docker Secrets`**: Os arquivos super secretos montados no container apenas durante a execução. Onde guardamos senhas. O container lê do arquivo `/run/secrets/...` internamente e ninguém vê de fora.
 
-## 4) Inicializacao do MariaDB em container
+---
 
-Fluxo comum de bootstrap:
-1. Ler secrets (senha user/root).
-2. Inicializar datadir na primeira execucao.
-3. Subir instancia temporaria por socket local.
-4. Rodar SQL de criacao de banco/usuario/permissoes.
-5. Encerrar instancia temporaria.
-6. Subir `mariadbd` final em foreground (PID 1).
+## 5. Como Iniciar o Cofre com Elegância?
 
-Esse padrao evita hacks e melhora previsibilidade.
+Sempre que o container do MariaDB é ligado *pela primeira vez*, precisamos:
+1. Ler as senhas seguras.
+2. Instalar as bases do sistema.
+3. Subir o servidor temporariamente.
+4. Executar os scripts SQL preparativos (`CREATE DATABASE`, `CREATE USER`, etc).
+5. Desligar e religar a versão definitiva no **Foreground**.
 
-## 5) Rede no Docker e conectividade
+Por queForeground (PID 1)? Porque o container precisa de um processo principal bloqueando a tela para acreditar que está "trabalhando".
 
-No Inception:
-- MariaDB deve estar na mesma network Docker dos outros servicos.
-- WordPress conecta via nome de servico (`DB_HOST=mariadb`).
-- normalmente nao se expoe `3306` para host (entrada publica nao necessaria).
+---
 
-`bind-address=0.0.0.0` permite conexao de containers na rede interna.
+## 6. O Isolamento de Rede
 
-## 6) Seguranca essencial
+Uma regra de ouro da arquitetura em três camadas: **Quem está de fora só fala com o Nginx.**
+O MariaDB não deve publicar a porta `3306` para a sua máquina hospedeira. Ele deve conversar APENAS com o WordPress, pelos corredores da rede interna (`networks: inception`). 
+Para que ele escute os vizinhos do condomínio, precisamos garantir que o MariaDB faça um "bind" no endereço de rede universal (`bind-address=0.0.0.0`).
 
-- Nunca hardcode senha em Dockerfile.
-- Usar secrets para credenciais sensiveis.
-- Restringir privilegios do usuario de aplicacao.
-- Evitar exposicao desnecessaria de porta 3306.
-- Manter backups/logica de recuperacao em cenarios reais.
+---
 
-## 7) `.env` vs secrets (no contexto do MariaDB)
+## 7. Quiz Rápido pra Defesa:
 
-- `.env`: variaveis nao sensiveis (nome do DB, usuario, host).
-- secrets: senhas (`db_password`, `db_root_password`).
-
-Motivo:
-- reduzir vazamento de credenciais
-- atender requisitos de seguranca da avaliacao
-
-## 8) Erros teoricos comuns
-
-## 8.1 `Access denied for user`
-Causas:
-- senha errada
-- usuario nao criado
-- privilegios ausentes
-
-## 8.2 `Error establishing a database connection` no WordPress
-Causas:
-- MariaDB fora do ar
-- `DB_HOST` errado
-- credenciais inconsistentes
-
-## 8.3 DB reinicia em loop
-Causas:
-- script de bootstrap com erro
-- config invalida
-- permissao ruim no datadir
-
-## 8.4 dados somem apos restart
-Causa:
-- volume mal configurado ou sem persistencia no caminho correto
-
-## 9) O que explicar na defesa
-
-- Por que MariaDB esta em container separado?
-  Separacao de responsabilidade, manutencao e seguranca.
-
-- Por que nao usar root no WordPress?
-  Principio do menor privilegio.
-
-- Por que usar secrets para senha?
-  Evita expor credenciais no codigo e no historico Git.
-
-- Por que persistir em `/home/<login>/data/mariadb`?
-  Requisito do enunciado e garantia de durabilidade de dados.
-
-- Por que processo final em foreground?
-  Porque container deve manter processo principal como PID 1.
-
-## 10) Checklist teorico minimo
-
-1. Entender fluxo WordPress <-> MariaDB.
-2. Saber diferenciar root e usuario de aplicacao.
-3. Saber explicar SQL de bootstrap (DB/user/grants).
-4. Saber justificar uso de secrets.
-5. Saber explicar persistencia do datadir.
-6. Saber explicar rede Docker e `DB_HOST=mariadb`.
-
-Com essa base, voce consegue explicar o MariaDB do Inception com seguranca durante a avaliacao.
+- **Por que usamos MySQL/MariaDB ao invés de um banco em arquivo tipo SQLite?** *(Porque aplicações web em produção exigem alta performance estruturada e bancos de dados orientados a cliente-servidor).*
+- **Por que o site quebrou quando subi tudo de novo?** *(Cheque se configurou o `volumes` corretamente no compose e se está guardando a persistência no host!)*
+- **O WordPress pode usar a porta do MariaDB do host?** *(Não! Ele deve conectar pelo DNS interno do docker, usando a variável `DB_HOST=mariadb`).*

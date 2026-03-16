@@ -1,169 +1,68 @@
-# TEORIA_WORDPRESS_INCEPTION.md
+# 👨‍🍳 Teoria WordPress: O Motor Dinâmico do Inception
 
-## 1) O que e WordPress no Inception
+O Nginx é o porteiro, o MariaDB é o estoque. Chegou a hora de conhecer o **Cozinheiro**: O serviço do **WordPress + PHP-FPM**.
+Se você pensa no WordPress apenas como um lugar de fazer blog fácil, no Inception o buraco é mais embaixo: Precisamos entender exatamente o que ele é arquiteturalmente.
 
-No Inception, WordPress e o servico de aplicacao web (CMS) que gera conteudo dinamico em PHP.
-Ele roda em container proprio com `php-fpm` e depende de:
-- MariaDB (armazenar dados)
-- Nginx (receber requisicoes HTTPS e encaminhar PHP)
+## 1. O que é esse tal de WordPress afinal?
+Trata-se do CMS (Sistema de Gerenciamento de Conteúdo) mais usado do mundo. É essencialmente um belíssimo amontoado de arquivos escritos em **PHP**. 
+Sendo código PHP, ele não roda sozinho feito mágica. Ele precisa de um intérprete. E é aí que entra o nosso herói secundário, o **PHP-FPM** (FastCGI Process Manager).
 
-WordPress **nao deve** ter Nginx dentro do mesmo container.
+O Nginx passa a receita (o arquivo `.php`), e o PHP-FPM entende a gramática, executa os comandos (que incluem pedir dados pro banco de dados) e devolve a página HTML purinha pronta pro usuário ler.
 
-## 2) Papel do WordPress na arquitetura
+---
 
-Fluxo simplificado:
-1. Cliente acessa `https://<login>.42.fr`.
-2. Nginx recebe a requisicao.
-3. Se for PHP, Nginx envia para `wordpress:9000`.
-4. php-fpm executa codigo WordPress.
-5. WordPress consulta MariaDB para posts, usuarios, configuracoes.
-6. Resultado volta para Nginx e depois para o cliente.
+## 2. A Missão do Container
 
-Resumo:
-- Nginx = entrada e proxy
-- WordPress/php-fpm = logica da aplicacao
-- MariaDB = dados persistentes
+Seu container de WordPress no projeto precisa ser **PURISTA**. 
+1. **NÃO PODE** instalar o Nginx dentro dele (violaria o princípio "1 serviço por container").
+2. Ele DEVE inicializar na porta `9000` escutando conexões e esperando ordens do Nginx.
 
-## 3) Conceitos essenciais
+---
 
-## 3.1 CMS
-WordPress e um CMS (Content Management System):
-- permite criar paginas, posts, usuarios, temas, plugins;
-- separa conteudo de apresentacao;
-- usa painel administrativo (`/wp-admin`).
+## 3. WP-CLI: Automação sem Cliquezinho de Mouse
 
-## 3.2 PHP-FPM
-`php-fpm` e o gerenciador de processos PHP em modo FastCGI.
-No Inception:
-- ele escuta em `0.0.0.0:9000`;
-- recebe scripts PHP do Nginx;
-- executa e devolve resposta.
+Em um servidor padrão, o usuário instalaria o WordPress digitando na tela do navegador aquele famoso "Menu de Instalação de 5 minutos". 
+Mas no Inception, a infra sobe de forma autônoma. O avaliador vai rodar `docker compose up` e tudo tem que estar pronto. Como pulamos aquela etapa chata de instalação gráfica?
+**Com o WP-CLI!**
 
-Sem php-fpm, o WordPress nao processa PHP.
+WP-CLI é a linha de comando do WordPress. Com ele, no seu script de bootstrap (`entrypoint`), você:
+- Faz download limpo do motor principal (`wp core download`).
+- Gera o arquivo de conexão com o banco de dados (`wp config create`).
+- Instala o site simulando um clique de interface (`wp core install`).
+- Cria um usuário secundário (`wp user create`).
 
-## 3.3 Banco de dados
-WordPress guarda no MariaDB:
-- usuarios e senhas (hash)
-- posts/paginas
-- configuracoes do site
-- metadata
+E bum, tudo tá pronto via terminal sem ninguém intervir. Mágica.
 
-Se DB nao estiver disponivel, erro classico:
-`Error establishing a database connection`.
+---
 
-## 3.4 Persistencia
-WordPress deve persistir em volume:
-- `/var/www/html` no container
-- mapeado para `/home/<login>/data/wordpress` no host (via volume Docker)
+## 4. O Coração do Site: `wp-config.php`
 
-Sem isso, ao recriar container, o site pode reinicializar.
+Esse é o arquivo que faz a ponte entre a cozinha e o estoque. É nele que configuramos:
+- Nome do Banco de Dados
+- Usuário do Banco
+- Senha
+- Host (`mariadb` — magicamente resolvido pelo DNS do Docker Compose na nossa network).
 
-## 4) Arquivos e componentes importantes
+O Script do WP-CLI vai gerar esse arquivo dinamicamente, lendo as variáveis `.env` e principalmente a senha em **Secret** injetada. Lembre-se: Nada de "senha admin123" hardcoded.
 
-## 4.1 `wp-config.php`
-Arquivo central de configuracao do WordPress:
-- nome do banco
-- usuario do banco
-- senha
-- host do banco
-- salts/chaves de seguranca
+---
 
-No Inception, esse arquivo costuma ser criado automaticamente no startup com `wp-cli`.
+## 5. Pegadinhas Clássicas do Enunciado
 
-## 4.2 `wp-content/`
-Pasta com conteudo principal do site:
-- `plugins/`
-- `themes/`
-- `uploads/`
+A 42 não dá ponto sem nó. O projeto do Inception tem regrinhas estritas para a verificação do WordPress:
+1. **Nome de usuário proibido:** Seu usuário administrador NÃO PODE se chamar `admin` nem `administrator`. 
+2. **Segundo usuário:** É obrigatório possuir pelo menos dois usuários registrados (um admin e um normal, como Editor).
+3. **Persistência dupla:** Não esqueça que os arquivos estáticos (códigos, posts, imagens upadas) ficam em `/var/www/html`. O banco de dados salva textos, mas as INFORMAÇÕES e PLUGINS ficam nessas pastas. Essa pasta **TEM QUE ESTAR EM UM VOLUME**, montada para o host (conforme regras do Nginx poder ler esses arquivos localmente também).
 
-Precisa estar no volume persistente para nao perder dados.
+---
 
-## 4.3 WP-CLI
-Ferramenta de linha de comando do WordPress.
-Usos comuns no projeto:
-- baixar core (`wp core download`)
-- gerar config (`wp config create`)
-- instalar site (`wp core install`)
-- criar usuario extra (`wp user create`)
+## 6. Socorro, Deu 502!
 
-## 5) Variaveis de ambiente e secrets
+Erros de Bad Gateway (502) assombram todos no Inception porque o fluxo do projeto é Nginx -> WP -> Banco.
+A investigação do erro funciona assim:
+- Nginx tenta acessar a porta `9000`. 
+- Quem tá na 9000? O php-fpm.
+- O php-fpm tá rodando? (Se o container não parou na tela de comando rodando o php-fpm em FOREGROUND, ele capota prematuramente).
+- O arquivo `.conf` do php-fpm na pasta `/etc/` está apontando para `listen = 0.0.0.0:9000`? (Se estiver só `127.0.0.1`, o Nginx bate na porta fechada, pois eles não dividem a mesma máquina host!).
 
-No projeto:
-- variaveis nao sensiveis no `.env` (ex: `MYSQL_DATABASE`, `DB_HOST`, `DOMAIN_NAME`)
-- senha sensivel em Docker secret (ex: `/run/secrets/db_password`)
-
-Motivo:
-- evita hardcode de credenciais em Dockerfile/codigo
-- melhora seguranca e conformidade na avaliacao
-
-## 6) Requisitos importantes do enunciado relacionados ao WordPress
-
-1. Container WordPress deve ter apenas WordPress + php-fpm (sem Nginx).
-2. Deve existir pelo menos 2 usuarios no WordPress/DB:
-- admin
-- outro usuario (ex: editor)
-3. Usuario admin nao pode ter nome com `admin`/`administrator`.
-4. Senhas nao podem ficar hardcoded em Dockerfile.
-5. Servico nao deve ficar vivo com hacks (`tail -f`, `sleep infinity`, etc.).
-
-## 7) Integracao com Docker Compose
-
-No compose, WordPress tipicamente precisa:
-- `depends_on: mariadb`
-- `env_file: .env`
-- `secrets: db_password, wp_admin_password, wp_editor_password`
-- `volumes: wordpress_data:/var/www/html`
-- `networks: inception`
-
-E **nao precisa** publicar porta para host.
-A entrada externa deve ser somente o Nginx em `443`.
-
-## 8) Erros teoricos comuns
-
-## 8.1 `Error establishing a database connection`
-Causas mais comuns:
-- host do banco errado
-- usuario/senha errados
-- MariaDB ainda nao pronto
-
-## 8.2 502 no Nginx
-Causa comum:
-- WordPress/php-fpm nao escuta em `0.0.0.0:9000`
-
-## 8.3 Reinstalacao do WordPress a cada restart
-Causa comum:
-- volume de `/var/www/html` nao esta persistindo
-
-## 8.4 Falha de avaliacao mesmo funcionando
-Causas comuns:
-- admin com nome proibido
-- credenciais expostas
-- WordPress com Nginx dentro do mesmo container
-
-## 9) Perguntas comuns na defesa
-
-- Por que WordPress precisa de php-fpm?
-Porque Nginx nao executa PHP; ele so encaminha.
-
-- Por que usar WP-CLI no startup?
-Para automatizar install/config e garantir reproducibilidade.
-
-- Por que WordPress precisa de volume?
-Para persistir core/config/uploads e evitar perda de dados.
-
-- Por que usar secret para senha do DB?
-Para nao deixar credencial exposta no repositório/Dockerfile.
-
-- Por que WordPress nao expoe porta publica?
-Porque Nginx e o unico entrypoint da infraestrutura.
-
-## 10) Checklist teorico minimo para dominar
-
-1. Entender fluxo Nginx -> php-fpm -> MariaDB.
-2. Saber explicar funcao do `wp-config.php`.
-3. Saber diferenciar `.env` de secrets.
-4. Saber justificar volume persistente de WordPress.
-5. Saber explicar por que o container WP nao deve ter Nginx.
-6. Saber explicar criacao de 2 usuarios e restricao do nome do admin.
-
-Com essa base, voce consegue justificar tecnicamente o servico WordPress no Inception durante a avaliacao.
+Saber investigar os pontos de contato é o que garante o selo de provado!

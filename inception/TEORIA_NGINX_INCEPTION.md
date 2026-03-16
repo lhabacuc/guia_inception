@@ -1,150 +1,72 @@
-# TEORIA_NGINX_INCEPTION.md
+# 🌐 Teoria Nginx: O Porteiro Rigoroso do Inception
 
-## 1) O que e Nginx (no contexto do Inception)
+Bem-vindo ao Nginx! É aqui que nosso projeto encontra o mundo real. Entenda o Nginx como o **Porteiro VIP** e o **Recepcionista** do seu sistema.
 
-Nginx e um servidor web e reverse proxy de alta performance.
-No Inception, ele e o **unico ponto de entrada** da infraestrutura e deve:
-- receber conexoes HTTPS na porta `443`;
-- aplicar TLS (`1.2`/`1.3`);
-- encaminhar requisicoes PHP para `wordpress:9000` (php-fpm).
+## 1. Qual é a missão do Nginx?
 
-## 2) Papel do Nginx na arquitetura
+No Inception, a arquitetura exige um único ponto de entrada. O cliente (navegador) NÃO pode ir direto falar com o WordPress ou com o Banco de Dados. Ele precisa passar primeiro pelo porteiro.
+A missão do Nginx é:
+1. Aceitar conexões seguras na porta `443` (HTTPS).
+2. Verificar a identidade usando certificados TLS.
+3. Entregar conteúdo estático (imagens, HTML simples) na hora.
+4. Quando alguém pede algo complexo (um arquivo `.php`), ele atua como mensageiro e joga a requisição para o WordPress resolver.
 
-Fluxo basico:
-1. Cliente abre `https://<login>.42.fr`.
-2. Nginx recebe conexao SSL/TLS.
-3. Nginx serve arquivos estaticos diretamente.
-4. Para `.php`, Nginx repassa para php-fpm (`fastcgi_pass wordpress:9000`).
-5. php-fpm executa PHP e devolve resposta ao Nginx.
-6. Nginx responde ao cliente.
+**🚨 ALERTA GIGANTE:** Nginx NÃO EXECUTA PHP! Se pedirem um bolo (PHP) pra ele, ele diz "Não sei cozinhar" e manda a ordem para a cozinha (WordPress/php-fpm).
 
-Resumo: Nginx **nao executa PHP**. Quem executa PHP e o php-fpm no container WordPress.
+---
 
-## 3) Conceitos obrigatorios para defesa
+## 2. A Camada de Segurança: TLS/SSL 🔒
 
-## 3.1 TLS/SSL
-- TLS protege trafego com criptografia.
-- Certificado contem chave publica + identidade (CN).
-- Chave privada fica no servidor.
-- Handshake TLS negocia cifra e gera sessao segura.
+Não queremos que a comunicação ande pelada pela internet (HTTP puro passa dados em texto claro). Por isso usamos **HTTPS**.
 
-No projeto:
-- usar `ssl_protocols TLSv1.2 TLSv1.3;`
-- nao usar TLS antigo (1.0/1.1).
+- **Certificado:** É a "Carteira de Identidade" do seu site.
+- **Chave Privada:** Fica guardada a sete chaves no servidor.
+- No Inception, criamos um certificado "auto-assinado". Como não fomos a um cartório oficial na internet pagar por isso, os navegadores dão aquele aviso de "Site Inseguro". Para esse projeto, isso é 100% normal e esperado.
+- **TLS 1.2 e 1.3:** São protocolos modernos de criptografia. Protocolos mais antigos (TLS 1.0/1.1) já foram crackeados pelos vilões da internet e não devem ser configurados no seu porteiro!
 
-## 3.2 Reverse Proxy
-Nginx fica na frente dos servicos internos.
-Vantagens:
-- centraliza entrada em uma porta;
-- controla seguranca e configuracao SSL;
-- isola servicos internos da internet.
+---
 
-## 3.3 FastCGI e php-fpm
-- FastCGI e protocolo usado entre Nginx e php-fpm.
-- `fastcgi_pass wordpress:9000` indica para onde enviar scripts PHP.
-- `SCRIPT_FILENAME` informa o caminho real do arquivo PHP.
+## 3. Reverse Proxy & FastCGI (Entendendo a mágica)
 
-## 3.4 Server block
-Bloco `server { ... }` define:
-- porta/SSL (`listen 443 ssl`);
-- dominio (`server_name`);
-- regras de rota (`location /`, `location ~ \.php$`).
+### Reverse Proxy (Proxy Reverso)
+Proxy normal é quando você se esconde para acessar a internet (ex: VPN). 
+Proxy **Reverso** é quando o SERVIDOR se esconde de você. Você acha que está acessando `login.42.fr` no Nginx, mas na verdade o Nginx tá buscando os dados escondidos lá no container do WordPress. Ele protege os serviços internos!
 
-## 4) Diretivas mais importantes (e por que existem)
+### O protocolo FastCGI / php-fpm
+Para o Nginx (o porteiro) falar com o WordPress (a cozinha), eles usam um telefone dedicado chamado `FastCGI`. 
+No bloco de configuração, verifique isso:
+`fastcgi_pass wordpress:9000;`
+É aqui que o Nginx está dizendo: *"Olha, é código PHP? Então liga no ramal 9000 para a equipe do WordPress resolver!"*
 
-- `listen 443 ssl;`
-  Explica que o servidor escuta HTTPS na porta 443.
+---
 
-- `server_name <login>.42.fr;`
-  Define dominio aceito pelo bloco.
+## 4. Dissecando a Configuração (O Bloco "Server")
 
-- `ssl_protocols TLSv1.2 TLSv1.3;`
-  Restringe protocolos seguros exigidos pelo projeto.
+Quando você escreve o arquivo `.conf` do Nginx, algumas regras são cruciais:
 
-- `root /var/www/html;`
-  Caminho dos arquivos do site.
+- `listen 443 ssl;` -> "Porteiro, só abra a porta 443, e exija a pulseirinha VIP (ssl)."
+- `server_name <login>.42.fr;` -> "Só deixe entrar quem está procurando especificamente por este nome."
+- `root /var/www/html;` -> "Isto é o mapa de onde estão os arquivos visíveis do site."
+- `index index.php index.html;` -> "Se a pessoa não pedir nenhum arquivo em específico, mande o index.php primeiro."
 
-- `index index.php index.html;`
-  Define arquivo padrao ao acessar diretorio.
+O comando mais cabuloso, mas que salva vidas:
+**`try_files $uri $uri/ /index.php?$args;`**
+Analogia: "Tente achar o arquivo físico. Não achou? Veja se é uma pasta. Também não? Então manda tudo pro chef principal do WordPress (`index.php`) e passa pra ele as anotações do cliente (`$args`)."
 
-- `try_files $uri $uri/ /index.php?$args;`
-  Se nao existir arquivo fisico, envia para front controller (`index.php`) mantendo query string.
+---
 
-- `location ~ \.php$ { ... }`
-  Bloco especifico para arquivos PHP.
+## 5. Falhas Comuns: Evite Reprovação!
 
-- `fastcgi_pass wordpress:9000;`
-  Encaminha execucao PHP ao php-fpm do container WordPress.
+- **A Síndrome do 502 Bad Gateway:** O erro mais famoso do Inception! Significa que o Nginx (porteiro) tentou ligar para o php-fpm (ramal 9000), mas ninguém atendeu. (Cheque se o container do WordPress está rodando e na mesma rede!).
+- **Rede Exposta:** NUNCA publique as portas do WordPress (9000) e MariaDB (3306) no `docker-compose.yml`. Só a 443 do Nginx deve ser visível pro mundo! O projeto pede isolamento.
 
-- `fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;`
-  Informa ao php-fpm o arquivo exato a executar.
+---
 
-## 5) Diferenca entre servir estatico e dinamico
+## 6. O Desafio Final: Defenda seu Nginx
 
-- Estatico: imagens, CSS, JS, HTML.
-  Nginx responde direto (mais rapido).
-
-- Dinamico (PHP):
-  Nginx nao interpreta PHP, apenas encaminha para php-fpm.
-
-## 6) Integracao com Docker
-
-No Docker Compose:
-- Nginx deve estar na mesma network dos outros servicos.
-- Apenas Nginx publica porta no host (`443:443`).
-- WordPress e MariaDB ficam sem exposicao publica.
-
-Beneficio:
-- seguranca e separacao clara de responsabilidades.
-
-## 7) Certificado self-signed no Inception
-
-Como projeto local, normalmente usa-se certificado autoassinado.
-Isso permite testar HTTPS sem CA publica.
-Navegador pode mostrar aviso de confianca, o que e esperado.
-
-## 8) Seguranca essencial
-
-- Nao expor portas internas desnecessarias.
-- Nao habilitar TLS legado.
-- Nao deixar credenciais hardcoded.
-- Rodar processo principal em foreground (`daemon off`).
-- Evitar configs permissivas sem necessidade.
-
-## 9) Erros teoricos mais comuns
-
-- **502 Bad Gateway**
-  Nginx nao consegue falar com php-fpm (servico/porta/bind incorretos).
-
-- **Certificado ausente ou caminho errado**
-  Nginx falha ao iniciar SSL.
-
-- **Dominio errado em server_name**
-  Requisicao nao cai no bloco esperado.
-
-- **HTTP em porta 443**
-  Cliente tentou sem TLS na porta HTTPS.
-
-## 10) Perguntas comuns na avaliacao (com resposta curta)
-
-- Por que Nginx e o unico entrypoint?
-  Para centralizar seguranca, TLS e roteamento, sem expor servicos internos.
-
-- Por que WordPress nao tem Nginx dentro dele?
-  Porque cada servico deve ter responsabilidade unica; PHP fica no php-fpm.
-
-- Qual funcao de `fastcgi_pass`?
-  Enviar scripts PHP para o php-fpm executar.
-
-- Qual diferenca entre TLS 1.2/1.3 e TLS antigos?
-  1.2/1.3 sao mais seguros; antigos tem vulnerabilidades conhecidas.
-
-## 11) Checklist teorico minimo para dominar
-
-1. Entender fluxo cliente -> Nginx -> php-fpm -> resposta.
-2. Saber explicar TLS, certificado e chave privada.
-3. Saber explicar `server_name`, `location`, `try_files`, `fastcgi_pass`.
-4. Saber justificar por que so a porta 443 deve estar publica.
-5. Saber diferenciar Nginx (proxy/web) de php-fpm (execucao PHP).
-
-Com essa base teorica, voce consegue explicar o Nginx do Inception com seguranca na defesa.
+Se o avaliador perguntar *"Como o cliente carrega a página?"*, responda com confiança:
+1. O Navegador bate na porta 443.
+2. O Nginx atende via HTTPS e olha o `server_name`.
+3. Ele percebe que o arquivo principal é `.php`.
+4. Ele não sabe ler `.php`, então usa o `fastcgi_pass` pra mandar a bucha pro container do WordPress.
+5. O WordPress processa, devolve HTML fresquinho pro Nginx, que finalmente entrega pro cliente satisfeito.
