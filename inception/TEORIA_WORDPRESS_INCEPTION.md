@@ -111,7 +111,7 @@ Motivo:
 No compose, WordPress tipicamente precisa:
 - `depends_on: mariadb`
 - `env_file: .env`
-- `secrets: db_password`
+- `secrets: db_password, wp_admin_password, wp_editor_password`
 - `volumes: wordpress_data:/var/www/html`
 - `networks: inception`
 

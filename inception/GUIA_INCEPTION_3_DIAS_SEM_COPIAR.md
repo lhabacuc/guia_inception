@@ -27,12 +27,12 @@ Como saber que está certo:
 ## 2) Definir variáveis e segredos
 
 O que fazer:
-- criar `.env` com variáveis de domínio, banco e usuários do WP;
-- criar arquivos de secrets para senha do DB e root do DB;
-- garantir que segredo não fica hardcoded em Dockerfile.
+- criar `.env` com variáveis de domínio, banco e identificação dos usuários do WP (sem senhas!);
+- criar arquivos de secrets para: senha do DB user, senha root do DB, senha admin do WP, senha editor do WP;
+- garantir que nenhuma senha fica hardcoded em Dockerfile nem no `.env`.
 
 Como saber que está certo:
-- seus scripts leem segredo em runtime, não de texto fixo no Dockerfile.
+- seus scripts leem segredo em runtime via `/run/secrets/`, não de texto fixo no Dockerfile nem de variáveis de ambiente.
 
 ## 3) Construir serviço MariaDB
 
@@ -56,8 +56,9 @@ Como saber que está certo:
 
 O que fazer:
 - declarar serviço `mariadb` no compose;
-- declarar rede dedicada;
-- declarar volume persistente para banco em `/home/<login>/data/mariadb`;
+- usar `name:` no topo do compose (nome do projecto) e em cada volume/network (evita prefixo automático);
+- declarar rede dedicada com `name:` explícito;
+- declarar volume persistente com `name:` para banco em `/home/<login>/data/mariadb`;
 - conectar secrets no serviço.
 
 Como saber que está certo:
@@ -91,7 +92,7 @@ O que fazer:
 - adicionar serviço `wordpress` no compose;
 - ligar na mesma network do DB;
 - montar volume persistente para `/var/www/html`;
-- conectar secret de senha do DB;
+- conectar secrets: senha do DB, senha admin WP, senha editor WP;
 - usar dependência de inicialização + wait loop no script.
 
 Como saber que está certo:

@@ -25,28 +25,33 @@ DOMAIN_NAME=<login>.42.fr
 WP_TITLE=Inception
 WP_ADMIN_USER=supervisor42
 WP_ADMIN_EMAIL=you@example.com
-WP_ADMIN_PASSWORD=StrongAdminPass123!
 WP_EDITOR_USER=editor42
 WP_EDITOR_EMAIL=editor@example.com
-WP_EDITOR_PASSWORD=StrongEditorPass123!
 ```
 
 O que cada bloco faz:
 - `MYSQL_*` e `DB_HOST`: dados de conexão com MariaDB.
 - `DOMAIN_NAME`: URL do site.
-- `WP_*`: dados de instalação inicial do WordPress.
+- `WP_ADMIN_USER`, `WP_ADMIN_EMAIL`: identificação do admin.
+- `WP_EDITOR_USER`, `WP_EDITOR_EMAIL`: identificação do editor.
 
-Observação importante:
+**Importante**: senhas **nunca** ficam no `.env`. Elas vão em Docker secrets (próxima seção).
+
+Observação adicional:
 - Evite usar `admin` ou `administrator` no nome do admin.
 
-## 3) Secret necessário
+## 3) Secrets necessários
 
-Criar senha do usuário do banco:
+Criar senhas do banco e do WordPress:
 
 ```bash
-printf 'StrongDbUserPass123!\n' > secrets/db_password.txt
-chmod 600 secrets/db_password.txt
+printf 'StrongDbUserPass123!\n'   > secrets/db_password.txt
+printf 'StrongAdminPass123!\n'    > secrets/wp_admin_password.txt
+printf 'StrongEditorPass123!\n'   > secrets/wp_editor_password.txt
+chmod 600 secrets/*.txt
 ```
+
+**Regra**: toda senha vai em arquivo de secret, nunca no `.env`.
 
 ## 4) Estrutura do serviço WordPress
 
@@ -121,6 +126,8 @@ Arquivo: `srcs/requirements/wordpress/tools/run.sh`
 set -e
 
 DB_PASSWORD="$(cat /run/secrets/db_password)"
+WP_ADMIN_PASSWORD="$(cat /run/secrets/wp_admin_password)"
+WP_EDITOR_PASSWORD="$(cat /run/secrets/wp_editor_password)"
 
 for i in $(seq 1 60); do
     if mariadb-admin ping -h"${DB_HOST}" -u"${MYSQL_USER}" -p"${DB_PASSWORD}" --silent; then
@@ -159,7 +166,7 @@ exec php-fpm8.2 -F
 ```
 
 O que esse script faz:
-- lê senha via Docker secret;
+- lê **todas** as senhas via Docker secrets (nunca de variáveis de ambiente);
 - espera o MariaDB ficar pronto;
 - baixa WordPress se for primeira execução;
 - cria `wp-config.php` com variáveis do ambiente;
@@ -192,12 +199,14 @@ wordpress:
     - inception
   secrets:
     - db_password
+    - wp_admin_password
+    - wp_editor_password
 ```
 
 O que é essencial aqui:
 - `depends_on`: sobe depois do serviço de DB (ainda assim mantém wait loop no script);
 - `volumes`: persiste arquivos do site;
-- `secrets`: injeta senha do DB no container;
+- `secrets`: injeta senha do DB **e** senhas do WP no container (nunca via `.env`);
 - não expor porta para o host (Nginx será o único entrypoint).
 
 ## 9) Subir e testar
@@ -279,10 +288,10 @@ ls -la /home/<login>/data/wordpress
 
 ## 12) Fluxo rápido (resumo)
 
-1. Preparar `.env` e secret `db_password`.
+1. Preparar `.env` (sem senhas) e secrets (`db_password`, `wp_admin_password`, `wp_editor_password`).
 2. Criar `Dockerfile`, `www.conf` e `run.sh` do WordPress.
 3. Dar `chmod +x` no `run.sh`.
-4. Declarar serviço no Compose com volume + network + secret.
+4. Declarar serviço no Compose com volume + network + secrets.
 5. Subir com `docker compose up -d --build`.
 6. Validar logs e porta `9000`.
 7. Testar acesso final via `https://<login>.42.fr`.

@@ -96,13 +96,14 @@ docker exec -it wordpress wp core install \
   --url="https://$DOMAIN_NAME" \
   --title="$WP_TITLE" \
   --admin_user="$WP_ADMIN_USER" \
-  --admin_password="$WP_ADMIN_PASSWORD" \
+  --admin_password="$(cat /run/secrets/wp_admin_password)" \
   --admin_email="$WP_ADMIN_EMAIL" \
   --allow-root
 ```
 
 O que faz:
 - cria o site WordPress e o usuário administrador.
+- lê a senha do admin via Docker secret (nunca de variável de ambiente).
 
 Resultado esperado:
 - `Success: WordPress installed successfully.`
@@ -119,12 +120,13 @@ Comando:
 ```bash
 docker exec -it wordpress wp user create "$WP_EDITOR_USER" "$WP_EDITOR_EMAIL" \
   --role=editor \
-  --user_pass="$WP_EDITOR_PASSWORD" \
+  --user_pass="$(cat /run/secrets/wp_editor_password)" \
   --allow-root
 ```
 
 O que faz:
 - cria usuário adicional (ex.: editor).
+- lê a senha do editor via Docker secret.
 
 Resultado esperado:
 - `Success: Created user ...`

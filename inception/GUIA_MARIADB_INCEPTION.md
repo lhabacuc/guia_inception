@@ -240,6 +240,7 @@ Trecho do volume com caminho exigido:
 ```yaml
 volumes:
   mariadb_data:
+    name: mariadb_data
     driver: local
     driver_opts:
       type: none
@@ -248,7 +249,21 @@ volumes:
 ```
 
 Explicação:
+- `name: mariadb_data`: nome explícito do volume (evita prefixo automático do Compose).
 - garante persistência exatamente no caminho pedido pelo projeto.
+
+Trecho da rede:
+
+```yaml
+networks:
+  inception:
+    name: inception
+    driver: bridge
+```
+
+Explicação:
+- `name: inception`: nome explícito da rede (sem prefixo).
+- `driver: bridge`: rede padrão entre containers.
 
 Trecho dos secrets:
 

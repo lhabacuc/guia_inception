@@ -36,7 +36,7 @@ Explicação:
 - Faz `<login>.42.fr` apontar para sua máquina local.
 - Na defesa, o avaliador vai testar esse domínio.
 
-## 3) `.env` (base para todos os serviços)
+## 3) `.env` (variáveis não sensíveis)
 
 `srcs/.env`:
 
@@ -49,10 +49,8 @@ DB_HOST=mariadb
 WP_TITLE=Inception
 WP_ADMIN_USER=supervisor42
 WP_ADMIN_EMAIL=you@example.com
-WP_ADMIN_PASSWORD=StrongAdminPass123!
 WP_EDITOR_USER=editor42
 WP_EDITOR_EMAIL=editor@example.com
-WP_EDITOR_PASSWORD=StrongEditorPass123!
 ```
 
 Explicação linha a linha:
@@ -63,23 +61,29 @@ Explicação linha a linha:
 - `WP_TITLE`: título inicial do site.
 - `WP_ADMIN_USER`: usuário admin (evite conter `admin`).
 - `WP_ADMIN_EMAIL`: email do admin.
-- `WP_ADMIN_PASSWORD`: senha do admin.
 - `WP_EDITOR_USER`: segundo usuário obrigatório.
 - `WP_EDITOR_EMAIL`: email do editor.
-- `WP_EDITOR_PASSWORD`: senha do editor.
+
+**Importante**: senhas **nunca** ficam no `.env`. Elas vão em Docker secrets (próxima seção).
 
 ## 4) Secrets
 
 ```bash
-printf 'StrongDbUserPass123!\n' > secrets/db_password.txt
-printf 'StrongDbRootPass123!\n' > secrets/db_root_password.txt
+printf 'StrongDbUserPass123!\n'   > secrets/db_password.txt
+printf 'StrongDbRootPass123!\n'   > secrets/db_root_password.txt
+printf 'StrongAdminPass123!\n'    > secrets/wp_admin_password.txt
+printf 'StrongEditorPass123!\n'   > secrets/wp_editor_password.txt
 chmod 600 secrets/*.txt
 ```
 
 Explicação linha a linha:
-- primeira linha: cria senha do usuário de aplicação do banco.
-- segunda linha: cria senha do root do banco.
-- terceira linha: restringe permissão (somente dono lê/escreve).
+- primeira linha: senha do usuário de aplicação do banco.
+- segunda linha: senha do root do banco.
+- terceira linha: senha do admin do WordPress.
+- quarta linha: senha do editor do WordPress.
+- última linha: restringe permissão (somente dono lê/escreve).
+
+**Regra**: toda senha vai em arquivo de secret, nunca no `.env`.
 
 ## 5) MariaDB (código completo)
 
@@ -231,22 +235,27 @@ Meta do Dia 1:
 
 ## 1) `docker-compose.yml` (trechos)
 
-Trecho do serviço `mariadb`:
+O compose precisa de um `name:` no topo para definir o nome do projecto. Cada recurso (volume, network) também precisa de `name:` para ter nomes previsíveis.
+
+Trecho do cabeçalho e serviço `mariadb`:
 
 ```yaml
-mariadb:
-  build: ./requirements/mariadb
-  image: mariadb
-  container_name: mariadb
-  restart: unless-stopped
-  env_file: .env
-  volumes:
-    - mariadb_data:/var/lib/mysql
-  networks:
-    - inception
-  secrets:
-    - db_password
-    - db_root_password
+name: inception
+
+services:
+  mariadb:
+    build: ./requirements/mariadb
+    image: mariadb
+    container_name: mariadb
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - inception
+    secrets:
+      - db_password
+      - db_root_password
 ```
 
 O que cada linha faz:
@@ -264,15 +273,40 @@ Trecho obrigatório de persistência em `/home/<login>/data`:
 ```yaml
 volumes:
   mariadb_data:
+    name: mariadb_data
     driver: local
     driver_opts:
       type: none
       o: bind
       device: /home/<login>/data/mariadb
+  wordpress_data:
+    name: wordpress_data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/<login>/data/wordpress
+
+networks:
+  inception:
+    name: inception
+    driver: bridge
+
+secrets:
+  db_password:
+    file: ../secrets/db_password.txt
+  db_root_password:
+    file: ../secrets/db_root_password.txt
+  wp_admin_password:
+    file: ../secrets/wp_admin_password.txt
+  wp_editor_password:
+    file: ../secrets/wp_editor_password.txt
 ```
 
 O que faz:
-- cria volume Docker usando bind no caminho exigido pelo enunciado.
+- volumes com `name:` explícito (evita prefixo automático do Compose);
+- rede com `name:` explícito;
+- secrets apontam para arquivos do host; cada senha em seu arquivo.
 
 ## 2) WordPress (trechos)
 
@@ -292,6 +326,8 @@ Trecho do `run.sh`:
 
 ```bash
 DB_PASSWORD="$(cat /run/secrets/db_password)"
+WP_ADMIN_PASSWORD="$(cat /run/secrets/wp_admin_password)"
+WP_EDITOR_PASSWORD="$(cat /run/secrets/wp_editor_password)"
 
 wp config create \
   --dbname="${MYSQL_DATABASE}" \
@@ -302,7 +338,8 @@ wp config create \
 ```
 
 Explicação:
-- lê senha do secret e gera `wp-config.php` sem hardcode de senha em Dockerfile.
+- lê todas as senhas dos secrets Docker, nunca de variáveis de ambiente.
+- gera `wp-config.php` sem hardcode de senha em Dockerfile.
 
 Trecho que cria 2 usuários (admin + editor):
 
