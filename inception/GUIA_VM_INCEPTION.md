@@ -32,8 +32,8 @@ No host (tua maquina Linux), precisas de:
 
 | Requisito | Minimo |
 |-----------|--------|
-| RAM livre | 4 GB (2 GB para a VM) |
-| Disco livre em `$HOME/sgoinfre/vm` | 20 GB |
+| RAM livre | 16 GB (8 GB para a VM) |
+| Disco livre em `$HOME/sgoinfre/vm` | 30 GB |
 | CPU com virtualizacao (VT-x/AMD-V) | Ativada na BIOS |
 | ISO Debian 13 | ~650 MB (netinst) |
 
@@ -98,7 +98,7 @@ VM_DISK="$HOME/sgoinfre/vm/inception.qcow2"
 VM_ISO="$HOME/sgoinfre/iso/debian-13.4.0-amd64-netinst.iso"
 VM_RAM=8048       # MB
 VM_CPUS=4
-VM_DISK_SIZE=30   # GB
+VM_DISK_SIZE=30   # GB (apenas exemplos)
 ```
 
 **Passo 1 -- Criar o disco virtual:**
@@ -179,8 +179,8 @@ virt-manager
 
 **Passo 3 -- Memoria e CPU:**
 
-- Memory: **2048 MB**
-- CPUs: **2**
+- Memory: **8048 MB**
+- CPUs: **4**
 
 **Passo 4 -- Disco:**
 
@@ -188,7 +188,7 @@ virt-manager
 2. Clicar **Manage** > **Browse Local**
 3. Navegar ate `$HOME/sgoinfre/vm/`
 4. Escrever nome do ficheiro: `inception.qcow2`
-5. Tamanho: **20 GB**
+5. Tamanho: **30 GB**
 
 > **Importante**: tens de apontar o disco para `$HOME/sgoinfre/vm/`.
 > Por defeito o virt-manager quer guardar em `/var/lib/libvirt/images/` -- NAO aceites o default!
@@ -236,14 +236,14 @@ virtualbox
 
 **Passo 4 -- Hardware:**
 
-- **Base Memory**: `2048 MB`
-- **Processors**: `2`
+- **Base Memory**: `8048 MB`
+- **Processors**: `4`
 - **Next**
 
 **Passo 5 -- Disco:**
 
 - Selecionar **Create a Virtual Hard Disk Now**
-- **Disk Size**: `20 GB`
+- **Disk Size**: `30 GB`
 - Confirmar que o caminho mostra `$HOME/sgoinfre/vm/inception/`
 - **Next**
 
