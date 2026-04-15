@@ -54,7 +54,7 @@ O disco da VM vai ficar em `$HOME/sgoinfre/vm` (requisito do projeto na 42).
 
 ```bash
 # Criar diretorio
-mkdir -p "$HOME/sgoinfre/vm"
+mkdir -p "$HOME/sgoinfre/vm" // de preferencia no goinfre
 
 # Verificar que existe e tem espaco
 df -h "$HOME/sgoinfre"
@@ -96,9 +96,9 @@ Este e o metodo mais rapido e reprodutivel.
 VM_NAME="inception"
 VM_DISK="$HOME/sgoinfre/vm/inception.qcow2"
 VM_ISO="$HOME/sgoinfre/iso/debian-13.4.0-amd64-netinst.iso"
-VM_RAM=2048       # MB
-VM_CPUS=2
-VM_DISK_SIZE=20   # GB
+VM_RAM=8048       # MB
+VM_CPUS=4
+VM_DISK_SIZE=30   # GB
 ```
 
 **Passo 1 -- Criar o disco virtual:**
